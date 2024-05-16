@@ -71,14 +71,17 @@ create or replace TABLE ANLT_IA_INDICATOR_RESULTS (
 
 --views
 
---This is creating a view of the dim_project table that only includes active projects
-create view analytics.dim_project as
+--This is creating a view of the dim_project table that only includes active projects. 
+-- DO NOT PUSH THIS TO PRODUCTION
+create or replace view IVS_DPMS_DEV.ANALYTICS.VW_DIM_PROJECT as
 select * from publish.dim_project_prod_26042024 
+join REFERENCE.REF_PROJECTTYPE 
+on REF_PROJECTTYPE.PROJECTTYPE_ID=dim_project_prod_26042024.project_type
 where active_ind = 'Y' 
 order by dim_project_id;
 
 --project reach
-create view anlt_ia_project_reach as
+create view vw_anlt_ia_project_reach as
 select 
     period,
     country_name,
@@ -95,7 +98,7 @@ from analytics.anlt_ia_agg_results where batch_id >= 111000 and batch_id < 11110
 
 --program reach
 
-create view anlt_ia_program_reach as
+create view vw_anlt_ia_program_reach as
 select
     period,
     country_name,
@@ -114,36 +117,39 @@ where batch_id >= 112000
 and batch_id < 112100;
 
 --project indicator
-create view anlt_ia_project_indicator as
+create or replace view ANALYTICS.VW_ANLT_IA_PROJECT_INDICATOR as
 select 
-    country_name,
-    period,
-    year,
-    sector,
-    program_id,
-    ivs_program_code,
-    project_id,
-    ivs_project_code,
-    programming_type,
-    objective_level, 
-    ivs_objective_code,
-    indicator_code,
-    age_group,
-    unit_of_measure,
-    unit_of_analysis,
-    is_people,
-    sex_disaggregation,
-    meta_indicator_code,
-    multi_year,
-    numerator,
-    denominator,
-    total,
-    insert_date,
-    update_date,
-    from analytics.anlt_ia_indicator_results;
+    IR.country_name,
+    IR.period,
+    IR.year,
+    IR.sector,
+    IR.program_id,
+    IR.ivs_program_code,
+    IR.project_id,
+    IR.ivs_project_code,
+    IR.programming_type,
+    IR.objective_level, 
+    IR.ivs_objective_code,
+    IR.indicator_code,
+    IR.age_group,
+    IR.unit_of_measure,
+    IR.unit_of_analysis,
+    IR.is_people,
+    IR.sex_disaggregation,
+    IR.meta_indicator_code,
+    IR.multi_year,
+    IR.numerator,
+    IR.denominator,
+    IR.total,
+    IR.insert_date,
+    IR.update_date,
+    IRT.INDICATOR_STATEMENT,
+    from analytics.anlt_ia_indicator_results as IR
+    join PUBLISH.IRT on IR.INDICATOR_CODE=IRT.INDICATOR_CODE;
+    select * from vw_anlt_ia_project_indicator;
 
 --program meta
-create view anlt_ia_program_meta as
+create view vw_anlt_ia_program_meta as
 select 
     period,
     country_name,
@@ -157,22 +163,3 @@ select
     insert_date,
     update_date
 from analytics.anlt_ia_agg_results where batch_id >= 122000 and batch_id < 122100;
-
---program reach
-create view anlt_ia_program_reach as
-select
-    period,
-    country_name,
-    program_id,
-    ivs_program_code,
-    girls,
-    boys,
-    women,
-    men,
-    total,
-    insert_date,
-    update_date
-from 
-    analytics.anlt_ia_agg_results 
-where batch_id >= 112000 
-and batch_id < 112100;
