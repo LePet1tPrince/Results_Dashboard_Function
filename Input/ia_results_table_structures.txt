@@ -1,0 +1,178 @@
+--This script contains the definitions of tables and views used in the project
+
+use database ivs_dpms_dev;
+use schema analytics;
+
+use role sf_ivs_dpms_dev_user;
+use warehouse ivs_dpms_nonprod_user_wh;
+
+
+create or replace TABLE ANLT_IA_AGG_RESULTS (
+	BATCH_ID NUMBER(38,0) NOT NULL, --id form of result_type
+	RESULT_TYPE VARCHAR(100) NOT NULL,
+	COUNTRY_ID VARCHAR(200), 
+	COUNTRY_NAME VARCHAR(50),
+	PERIOD VARCHAR(20) NOT NULL,
+	SECTOR VARCHAR(100),
+	PROGRAM_ID NUMBER(38,0), --integer id for ivs_program_code
+	IVS_PROGRAM_CODE VARCHAR(50),
+	PROJECT_ID NUMBER(38,0), --integer id for ivs_project_code
+	IVS_PROJECT_CODE VARCHAR(50),
+	PROGRAMMING_TYPE VARCHAR(100), --project level
+	DATA_REQUEST_ID VARCHAR(200), --used to be called causeID
+	INDICATOR_ID VARCHAR(200), --intiger ID for IVS_INDICATOR_CODE. That column doesn't exist yet in the IRT
+	IVS_INDICATOR_CODE VARCHAR(200),
+	IS_PEOPLE BOOLEAN,
+	BOYS NUMBER(38,0) NOT NULL,
+	MEN NUMBER(38,0) NOT NULL,
+	GIRLS NUMBER(38,0) NOT NULL,
+	WOMEN NUMBER(38,0) NOT NULL,
+	TOTAL NUMBER(38,2),
+	INSERT_DATE TIMESTAMP_NTZ(9) NOT NULL, --date the record was inserted
+	UPDATE_DATE TIMESTAMP_NTZ(9) NOT NULL --date the record was last updated
+);
+
+create or replace TABLE ANLT_IA_INDICATOR_RESULTS (
+	BATCH_ID NUMBER(38,0) NOT NULL, --id form of result_type
+	RESULT_TYPE VARCHAR(100) NOT NULL,
+	COUNTRY_ID VARCHAR(200), --should evenutally be an int but we don't have that ready yet
+	COUNTRY_NAME VARCHAR(50),
+	PERIOD VARCHAR(20) NOT NULL, --fiscal year
+    YEAR VARCHAR(10) NOT NULL, --year of the project. eg Y1, Y2 etc
+	SECTOR VARCHAR(100),
+	PROGRAM_ID NUMBER(38,0), --integer id for ivs_program_code
+	IVS_PROGRAM_CODE VARCHAR(50),
+	PROJECT_ID NUMBER(38,0), --integer id for ivs_project_code
+	IVS_PROJECT_CODE VARCHAR(50),
+	PROGRAMMING_TYPE VARCHAR(100),
+    OBJECTIVE_LEVEL VARCHAR(50), --goal, output, outcome etc
+    IVS_OBJECTIVE_CODE VARCHAR(50), 
+	INDICATOR_ID VARCHAR(200), --intiger ID for IVS_INDICATOR_CODE. That column doesn't exist yet in the IRT
+    INDICATOR_CODE VARCHAR(50),
+    AGE_GROUP_ID NUMBER(38,0), --integer id for age_group
+    AGE_GROUP VARCHAR(50),
+    UNIT_OF_MEASURE VARCHAR(50),
+    UNIT_OF_ANALYSIS VARCHAR(50),
+	IS_PEOPLE BOOLEAN,
+    SEX_DISAGGREGATION VARCHAR(50),
+    META_INDICATOR_ID NUMBER(38,0), --integer id for meta_indicator_code
+    META_INDICATOR_CODE VARCHAR(100), --indicator code for the grandparent indicator
+    MULTI_YEAR VARCHAR(3), --type of aggregation (either max or sum)
+	NUMERATOR NUMBER(38,2),
+    DENOMINATOR NUMBER(38,2),
+	GIRLS NUMBER(38,0),
+    BOYS NUMBER(38,0),
+    WOMEN NUMBER(38,0),
+    MEN NUMBER(38,0),
+    TOTAL NUMBER(38,2),
+	INSERT_DATE TIMESTAMP_NTZ(9) NOT NULL,
+	UPDATE_DATE TIMESTAMP_NTZ(9) NOT NULL
+);
+
+--views
+
+--This is creating a view of the dim_project table that only includes active projects
+create view analytics.dim_project as
+select * from publish.dim_project_prod_26042024 
+where active_ind = 'Y' 
+order by dim_project_id;
+
+--project reach
+create view anlt_ia_project_reach as
+select 
+    period,
+    country_name,
+    project_id,
+    ivs_project_code,
+    girls,
+    boys,
+    women,
+    men,
+    total,
+    insert_date,
+    update_date
+from analytics.anlt_ia_agg_results where batch_id >= 111000 and batch_id < 111100;
+
+--program reach
+
+create view anlt_ia_program_reach as
+select
+    period,
+    country_name,
+    program_id,
+    ivs_program_code,
+    girls,
+    boys,
+    women,
+    men,
+    total,
+    insert_date,
+    update_date
+from 
+    analytics.anlt_ia_agg_results 
+where batch_id >= 112000 
+and batch_id < 112100;
+
+--project indicator
+create view anlt_ia_project_indicator as
+select 
+    country_name,
+    period,
+    year,
+    sector,
+    program_id,
+    ivs_program_code,
+    project_id,
+    ivs_project_code,
+    programming_type,
+    objective_level, 
+    ivs_objective_code,
+    indicator_code,
+    age_group,
+    unit_of_measure,
+    unit_of_analysis,
+    is_people,
+    sex_disaggregation,
+    meta_indicator_code,
+    multi_year,
+    numerator,
+    denominator,
+    total,
+    insert_date,
+    update_date,
+    from analytics.anlt_ia_indicator_results;
+
+--program meta
+create view anlt_ia_program_meta as
+select 
+    period,
+    country_name,
+    program_id,
+    ivs_program_code,
+    girls,
+    boys,
+    women,
+    men,
+    total,
+    insert_date,
+    update_date
+from analytics.anlt_ia_agg_results where batch_id >= 122000 and batch_id < 122100;
+
+--program reach
+create view anlt_ia_program_reach as
+select
+    period,
+    country_name,
+    program_id,
+    ivs_program_code,
+    girls,
+    boys,
+    women,
+    men,
+    total,
+    insert_date,
+    update_date
+from 
+    analytics.anlt_ia_agg_results 
+where batch_id >= 112000 
+and batch_id < 112100;
