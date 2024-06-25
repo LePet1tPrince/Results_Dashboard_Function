@@ -8,6 +8,7 @@ from snowflake.snowpark import Session
 from datetime import datetime
 import time
 
+
 start = time.time()
 # credentials = {
 #     	'account' : 'pr43333.canada-central.azure',
@@ -47,6 +48,32 @@ def clean_df(excelfile):
     
     return df
 
+def archive_table(session, table_name):
+    #pull the current results
+    prev_results = session.sql(f'select * from {table_name};').to_pandas()
+    prev_results['ARCHIVE_DATE'] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    #append those results to the archive table
+    prev_results['INSERT_DATE'] = pd.to_datetime(prev_results['INSERT_DATE']).dt.tz_localize('UTC')
+    prev_results['UPDATE_DATE'] = pd.to_datetime(prev_results['UPDATE_DATE']).dt.tz_localize('UTC')
+    
+    session.write_pandas(df = prev_results, table_name = f'{table_name}_ARCHIVE', overwrite=False, auto_create_table=False)
+    #if there are more than 10 entries to the archive table, delete the oldest one.
+    session.sql(f'''DELETE FROM {table_name}_ARCHIVE WHERE ARCHIVE_DATE IN (
+    -- Select all rows that are not in the 10 newest archive dates. delete them
+    SELECT DISTINCT ARCHIVE_DATE
+    FROM {table_name}_ARCHIVE
+    WHERE ARCHIVE_DATE NOT IN (
+        -- Find the 10 newest archive dates. Keep those
+            SELECT DISTINCT ARCHIVE_DATE
+            FROM {table_name}_ARCHIVE
+            ORDER BY ARCHIVE_DATE DESC
+            LIMIT 10
+        )
+    ORDER BY ARCHIVE_DATE DESC
+    );''').collect()
+    #truncate the main table
+    print(f'{table_name} table archived')
+    return
 
 agg_df = clean_df('Interim/agg_results.xlsx')
 ind_df = clean_df('Interim/indicator_results.xlsx')
@@ -54,9 +81,12 @@ ind_df = clean_df('Interim/indicator_results.xlsx')
 print('Uploading data to Snowflake...')
 
 #print to snowflake
+
+archive_table(session, 'ANLT_IA_AGG_RESULTS')
 session.sql('TRUNCATE table if exists ANLT_IA_AGG_RESULTS;').collect()
 session.write_pandas(df = agg_df, table_name='ANLT_IA_AGG_RESULTS', overwrite=False, auto_create_table=False)
 
+archive_table(session, 'ANLT_IA_INDICATOR_RESULTS')
 session.sql('TRUNCATE table if exists ANLT_IA_INDICATOR_RESULTS;').collect()
 session.write_pandas(df = ind_df, table_name='ANLT_IA_INDICATOR_RESULTS', overwrite=False, auto_create_table=False)
 

@@ -40,6 +40,7 @@ import time
 import math
 from Reach import REACH
 from Meta import META
+from direct_upload import archive_table
 
 def main():
         
@@ -286,19 +287,19 @@ def main():
         'reach': 1E4,
         'meta': 2E4,
         
-        'project': 1E3,
-        'program': 2E3,
-        'country': 3E3,
+        'project_': 1E3,
+        'program_': 2E3,
+        'country_': 3E3,
         
         
         #blanks will have a 0 in this field
-        'sector': 1E2,
-        'programming_type': 2E2,
-        'causeid': 3E2,
-        'indicator': 4E2,
+        'sector_': 1E2,
+        'programming_type_': 2E2,
+        'causeid_': 3E2,
+        'indicator_': 4E2,
         
-        'single': 1E1,
-        'multi': 2E1,
+        'single-year_': 1E1,
+        'multi-year_': 2E1,
         
         'ghc': 1
     }
@@ -328,6 +329,8 @@ def main():
         
     dump_df = dump_df.reset_index(drop=True)
     dump_df.to_excel('Interim/agg_results.xlsx')
+
+
     
     #change up session qualities so we can write to snowflake
     session.use_database(write_credentials['database'])
@@ -335,6 +338,7 @@ def main():
     session.use_role(write_credentials['role'])
     session.use_warehouse(write_credentials['warehouse'])    
     
+    archive_table(session, 'ANLT_IA_AGG_RESULTS')
     session.sql('truncate table if exists ANLT_IA_AGG_RESULTS;').collect()
     session.write_pandas(df = dump_df, table_name = 'ANLT_IA_AGG_RESULTS', overwrite=False, auto_create_table=False)
     
@@ -391,6 +395,10 @@ def main():
                               ]].copy()
     
     dump_df.to_excel('Interim/indicator_results.xlsx')
+    
+    ## move old table results into archive
+
+    archive_table(session, 'ANLT_IA_INDICATOR_RESULTS')
     session.sql('truncate table if exists ANLT_IA_INDICATOR_RESULTS;').collect()
     session.write_pandas(df = dump_df, table_name = 'ANLT_IA_INDICATOR_RESULTS', overwrite=False, auto_create_table=False)
     
