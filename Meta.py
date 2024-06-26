@@ -21,6 +21,7 @@
 
 import pandas as pd
 import numpy as np
+from snowflake.snowpark import Session
 from datetime import datetime
 import math
 import sys
@@ -32,15 +33,69 @@ start = time.time()
 pd.set_option('display.max_columns', None)
 #%% Get User Input
 
+# # The data available in our ITT range from these years:
+# Y_min = 16
+# Y_max = 22
 
+
+# Specify if this is for MultiYear or Not
+# while True:
+#   try:
+#       # Determine if we run for Multi or Single
+#     single_multi = input("Multi Year Script? (y = Yes): ")
+#     if single_multi == 'y':
+#       print("Multi Year Script will be run") 
+#       single_multi = "multi"
+#       # Get user input for valid years
+#       while True:
+#           try:
+#             range_from = int(input("Year FROM (16...22): ")) 
+#             if Y_min <= range_from <= Y_max:
+#               # print("The year  is correct")
+#               break;
+#             else:
+#               print("Invalid Input")      
+#           except ValueError:
+#             print("Invalid")
+#             continue
+        
+#       while True:
+#           try:
+#             range_to = int(input("Year TO ("+str(range_from)+"..22): ")) 
+#             if range_from <= range_to <= Y_max:
+#               # print("The age is correct")
+#               break;
+#             else:
+#               print("Invalid Input")      
+#           except ValueError:
+#             print("Invalid")
+#             continue
+        
+#       year = [*range(range_from,range_to+1)]
+    
+#         # Convert to Text
+#       list_year = [str(x) for x in year]
+#         # Add FY in front of text
+#       list_year = list(map('FY'.__add__,list_year))      
+#       break;  
+#     else:
+#           single_multi = "single"  
+#           print("Year by Year Script will be run")      
+#           break;      
+#   except ValueError:
+#         print("Invalid")
+#         continue
+    
 # TODO
 # Manual INPUT
 # The data available in our ITT range from these years:
 
 def META(single_multi, range_from, range_to, meta, causeid, project_cause,df1, df_agelist, df_agemap, df_package):
-  
 
-    # single_multi = "single"  #multi / single
+    # Y_min = 16
+    # Y_max = 23
+
+    # single_multi = "multi"  #multi / single
     # range_from = 19
     # range_to = 23
 
@@ -56,14 +111,11 @@ def META(single_multi, range_from, range_to, meta, causeid, project_cause,df1, d
     # TODO User Input
 
     # meta = True
-    # causeid = True
+    # causeid = False
     # project_cause = False
     # True / False
 
-
     grouping_list_master = ['period','country','multi_year','ivs_program_code', 'project_code', 'overlap','funding','p_np']
-    #testing new line
-    # grouping_list_master = ['period','country','meta_link','meta_sector','meta_statement','multi_year','ivs_program_code', 'project_code', 'overlap','funding','p_np','level_of_change']
 
     # Cannot run Meta and Project_Cause together
     # Cannot run Multi and Project_Cause together
@@ -94,26 +146,83 @@ def META(single_multi, range_from, range_to, meta, causeid, project_cause,df1, d
     # [Read ITT]
 
 
-    
+    # credentials = {
+    #     'account' : 'pr43333.canada-central.azure',
+    #     'user' :   'marthe_lotz@worldvision.ca',
+    #     'authenticator' : 'externalbrowser',
+    #     'role' : 'DATA_INSIGHTS',
+    #     'warehouse' : 'DATA_INSIGHTS_WH',
+    #     'database'  : 'ANALYTICS_SANDBOX',
+    #         # 'database'  : 'IVS_DPMS_DEV',
+    #     'schema'    : 'INSIGHTS' ,
+    #     'authenticator' : 'externalbrowser'
+    #     }
+
+    # session = Session.builder.configs(credentials).create()
+
+    # query  = "select * from ANALYTICS_SANDBOX.INSIGHTS.HUB_TABLE_TEST"
+    # sql_table = session.sql(query)
+    # df1 = sql_table.to_pandas()
+    # df1.columns= df1.columns.str.lower()
+
+    # df1.to_excel("HubTable.xlsx")
+
+    # path = "testing\\Testdata_04Feb.xlsx" 
+    # df1 = pd.read_excel(path, sheet_name='data')
+
     # Filter out any Indicators without Meta
     df1['meta_link'] = df1['meta_link'].fillna("")
     df1 = df1[df1['meta_link'].str.contains('IVS')]
 
-    # df1 = df1[df1['period'].str.contains('FY23')]
 
+    def fixTraining(dfx):
+        a = ['IVS-GIC-062', 'IVS-GIC-063' , 'IVS-GIC-244']
+    
+        if dfx in a:
+            return "Training"
+        else:
+            return "Total"
+    
+    
+    df1['meta_link'] = df1.apply(lambda x: fixTraining(x["meta_link"]), axis=1)    
+
+    df1 = df1[df1['meta_link'].str.contains('Training')]
+
+    # df1 = df1[df1['period'].str.contains('FY23')]
 
     # TODO
     # Remember to sort out the Sector Column
     df1 = df1.rename(columns={'sector_for_reporting_in_fy23': 'sector'})
 
-   
+    # query  = "select * from ANALYTICS_SANDBOX.INSIGHTS.AGELIST"
+    # sql_table = session.sql(query)
+    # df_agelist = sql_table.to_pandas()
+    # df_agelist.columns= df_agelist.columns.str.lower()
+
+
+    # query  = "select * from ANALYTICS_SANDBOX.INSIGHTS.AGEMAP"
+    # sql_table = session.sql(query)
+    # df_agemap = sql_table.to_pandas()
+    # df_agemap.columns= df_agemap.columns.str.lower()
 
 
     # TODO
     # Changes for CauseID calculation
     if disaggregation == 'causeid':
-        # # Read and filter based on packages information
-       
+        # Read and filter based on packages information
+        query  = "select * from ANALYTICS_SANDBOX.INSIGHTS.CAUSES"
+        sql_table = session.sql(query)
+        df_package = sql_table.to_pandas()
+        df_package.columns= df_package.columns.str.lower()
+        
+
+        
+        
+        # packagepath = "data\\df_package.xlsx" 
+        # df_package = pd.read_excel(packagepath, sheet_name = 'data')
+        # # drop index column created by Excel
+        # del df_package[df_package.columns[0]]
+        # df_package.columns= df_package.columns.str.lower()
         
         # Do an outer join to merge all Projects in prockages with all the projects-ITT data available
         df_P = pd.merge(df1, df_package, left_on=['project_code'], right_on=['ivs_project_code'], how ="outer")
@@ -153,9 +262,9 @@ def META(single_multi, range_from, range_to, meta, causeid, project_cause,df1, d
 
 
 
-    # end = time.time()
-    # print("Done reading :",
-    #     (end-start) /60, "min")
+    end = time.time()
+    print("Done reading :",
+        (end-start) /60, "min")
 
 
     def allocate_difference(row):
@@ -326,9 +435,8 @@ def META(single_multi, range_from, range_to, meta, causeid, project_cause,df1, d
 
     # Using the calculated % spread, calculate all the values in all the 
     # Age brackets, based on Numerator and Equivalency   
-    c = df1['numerator'] *df1['equivalency']
     for ele in brackets:    
-        df1[ele] *= c
+        df1[ele] = df1[ele] *df1['numerator'] *df1['equivalency']
         
     df1 = df1.drop("unique", axis = 1)    
         
@@ -345,7 +453,32 @@ def META(single_multi, range_from, range_to, meta, causeid, project_cause,df1, d
     F_under18 = list(map('f'.__add__,under18))
     F_above18 = list(map('f'.__add__,above18))  
     #%% TESTFILTERS
+    # df1 = df1[(df1['country'] == "M03_Rounding_nonpeople")]
 
+    # df1 = df1[(df1['funding'] == "SPN")] 
+    # # df1 = df1[(df1['period'] == "FY22")|(df1['period'] == "FY23")]
+    # df1 = df1[(df1['period'] == "FY23")]
+
+    # df1 = df1[(df1['country'] == "Mali")]
+
+    # df1['level_of_change'] = df1['level_of_change'].fillna("")
+    # df1 = df1[df1['level_of_change'].str.contains('04. Training')]
+
+    # df1 = df1[(df1['period'] == "FY22")|(df1['period'] == "FY23")]
+
+    # df1 = df1[(df1['meta_sector'] == "Water, Sanitation and Hygiene")]
+    # df1 = df1[(df1['indicator_code'] == "WVC-00333")]
+
+    # # df1 = df1[(df1['country'] == "Kenya")|(df1['country'] == "Malawi")|(df1['country'] == "Afghanistan")]  #country table spelling
+
+
+    # # df1 = df1[(df1['period'] == "FY19")|(df1['period'] == "FY20")|(df1['period'] == "FY21")|(df1['period'] == "FY22")] 
+
+
+
+    # In[Create summary for Demographics]
+    # Create the columns for the Male Age Brackets, and calculate the values based
+    # on the Male% from the country Table
 
 
 
@@ -357,12 +490,12 @@ def META(single_multi, range_from, range_to, meta, causeid, project_cause,df1, d
                                     df1[demographic] *df1['male_percentage_x'],
                                             0)))
                                     
-        df1.rename(columns={"male_percentage_x":'m' + demographic}, inplace=True)
+        df1 = df1.rename(columns={"male_percentage_x":'m' + demographic})
         
     # Create the columns for the Female Age Brackets, and calculate the values based
     # on the Male% from the country Table
 
-    # for demographic in brackets:
+    for demographic in brackets:
         df1['f' + demographic] = np.where(df1['sex_disaggregation'] == "Female", df1[demographic],  
                                         np.where(df1['sex_disaggregation'] == "Male", 0,    
                                         np.where(df1['sex_disaggregation'] == "Total",
@@ -508,21 +641,21 @@ def META(single_multi, range_from, range_to, meta, causeid, project_cause,df1, d
         # Calculate the Demographic per Column heading, either Sum or Max
         for demographic in demographic_brackets:
             # #Create GroupBY Seriesbased on certain columns and do the Max in certain demographic column
-            max_subset = (df1.groupby(['country','meta_link', 'project_code',"multi_year"])[demographic].max())           
-            max_subset = pd.DataFrame(max_subset)
-            max_subset = max_subset.reset_index()
+            subset = (df1.groupby(['country','meta_link', 'project_code',"multi_year"])[demographic].max())           
+            subset = pd.DataFrame(subset)
+            subset = subset.reset_index()
             #  Now we will Merge the new demo-max value with df2
-            df2People_Max = pd.merge(df2People_Max,max_subset, how = 'left', on = ['country','meta_link', 'project_code',"multi_year"])
-            max_subset.drop
+            df2People_Max = pd.merge(df2People_Max,subset, how = 'left', on = ['country','meta_link', 'project_code',"multi_year"])
+            subset.drop
         
-        # for demographic in demographic_brackets:
+        for demographic in demographic_brackets:
             # #Create GroupBY Seriesbased on certain columns and do the Max in certain demographic column
-            sum_subset = (df1.groupby(['country','meta_link', 'project_code',"multi_year"])[demographic].sum())           
-            sum_subset = pd.DataFrame(sum_subset)
-            sum_subset = sum_subset.reset_index()
+            subset = (df1.groupby(['country','meta_link', 'project_code',"multi_year"])[demographic].sum())           
+            subset = pd.DataFrame(subset)
+            subset = subset.reset_index()
             #  Now we will Merge the new demo-max value with df2
-            df2People_Sum = pd.merge(df2People_Sum,sum_subset, how = 'left', on = ['country','meta_link', 'project_code',"multi_year"])
-            sum_subset.drop
+            df2People_Sum = pd.merge(df2People_Sum,subset, how = 'left', on = ['country','meta_link', 'project_code',"multi_year"])
+            subset.drop
             
             
         df2People = pd.concat([df2People_Max, df2People_Sum])
@@ -603,9 +736,9 @@ def META(single_multi, range_from, range_to, meta, causeid, project_cause,df1, d
     df2['totalrank'] = (np.where(df2['p_np'] == "non-people", 0,df2['total']))
 
     if project_cause:
-        print("DataReqeust Output")
-        # df2.to_excel("testing\\project_causeID.xlsx")
-        return df2
+        # print("DataReqeust Output")
+        # df2.to_excel("results\\project_causeID.xlsx")
+        sys.exit()
 
     #%% DF3 - Group Data by ProgramCode
     # In[DF3a - All AP's ]
@@ -777,7 +910,7 @@ def META(single_multi, range_from, range_to, meta, causeid, project_cause,df1, d
             subset = subset.reset_index()
             df3c_people = pd.merge(df3c_people,subset, how = 'left', on = temp_list)
             
-    calculate_M_F( df3c_people )
+    calculate_M_F( df3c_people );
 
     # Calculate non-people
     subset = (df2.groupby(temp_list)['total'].sum())           
@@ -1223,15 +1356,47 @@ def META(single_multi, range_from, range_to, meta, causeid, project_cause,df1, d
     total = df10['total'].sum()
     print ("PVT ")
     print (total)
+    
+    return dfProject_summary, dfProgram_summary, dfCountry_summary
+    
 
 
     #%% PRINT
+
+    # # TESTPRINT
+    # savepath = "results\\"
+    # ext = datetime.now().strftime('_%Y%m%d_%H%M.xlsx')
+
+    # if single_multi == "single":
+    #     filename =  "META_All_"
+    # else:
+    #     filename =  "META_multi_16_23_"   
+
+    # writer = pd.ExcelWriter(savepath+filename+disaggregation  + ext, engine='xlsxwriter')
+        
+    # frames = {
+    #     #   "df1" : df1,
+    #     # 'df2': df2,
+    #     # "df3" : df3,"df3a" : df3a , "df3b" : df3b,"df3c" : df3c,"df3x" : df3x,
+    #     # "df4" : df4,
+    #     #         "DF5": df5, "DF6": df6, "DF7": df7, "DF8":df8, "df9":df9, 
+    #             # "PJT_summary":dfProject_summary, 
+    #             "PGM_summary" : dfProgram_summary, 
+    #             "Country_summary": dfCountry_summary, "PVT": dfPVT_summary
+    #         }    
+        
+
+        
+    #     #now loop thru and put each on a specific sheet
+    # for sheet, frame in  frames.items(): # .use .items for python 3.X
+    #     frame.to_excel(writer, sheet_name = sheet)
+        
+    #     #critical last step
+    # writer.save()
+    # writer.close()
+
+
     # end = time.time()
     # print("Done :",
     #     (end-start) /60, "min")
-    
-
-    return dfProject_summary, dfProgram_summary, dfCountry_summary
-    # return dfProject_summary
-    
 

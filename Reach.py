@@ -24,6 +24,7 @@
 
 import pandas as pd
 import numpy as np
+from snowflake.snowpark import Session
 from datetime import datetime
 import warnings
 warnings.simplefilter(action='ignore', category=FutureWarning)
@@ -118,30 +119,30 @@ def REACH(disaggregation,single_multi,range_from,range_to,df1, df_agelist, df_ag
     
         return
     
-    def calculate_demographic_sum_max(df, sum_or_max, grouping_list, demographic_brackets, result_df):
-        """ Sum the values for each demographic group
-        df: the dataframe being grouped
-        sum_or_max: 'sum' or 'max' to determine the calculation
-        grouping_list: the columns to group by
-        demographic_brackets: the demographic columns to sum
-        result_df: the dataframe to merge the results into
-        """
-        if sum_or_max == 'sum':
-            sum_values = df.groupby(grouping_list)[demographic_brackets].sum()
-            result_df = pd.merge(result_df, sum_values.reset_index(), how='left', on=grouping_list)
-        elif sum_or_max == 'max':
-            max_values = df.groupby(grouping_list)[demographic_brackets].sum()
-            result_df = pd.merge(result_df, max_values.reset_index(), how='left', on=grouping_list)
-            
-        return result_df
+    # def calculate_M_F( dfx ): 
+    #     dfx['boys'] = dfx[M_under18].sum(axis=1).apply(np.floor)  
+    #     dfx['men'] = dfx[M_above18].sum(axis=1).apply(np.floor)
+    #     dfx['girls'] = dfx[F_under18].sum(axis=1).apply(np.floor)    
+    #     dfx['women'] = dfx[F_above18].sum(axis=1).apply(np.floor) 
     
- 
+    #     # if not dfx.empty:
+    #     #      # Apply the allocate_difference function to each row
+    #     #     dfx[['girls', 'boys', 'women', 'men']] = dfx.apply(allocate_difference, axis=1)
+        
+    #     #Add male, female, total columns
+    #     dfx['male']= dfx['boys']+dfx['men']
+    #     dfx['female']= dfx['girls']+dfx['women']
+    #     dfx['total']= dfx['male']+dfx['female']
+    
+    #     return    
     
     
     
     # TODO
     # Changes for CauseID calculation
     if disaggregation == 'causeid':
+        
+        print('ehllo')
      
         # Do an outer join to merge all Projects in prockages with all the projects-ITT data available
         
@@ -149,9 +150,9 @@ def REACH(disaggregation,single_multi,range_from,range_to,df1, df_agelist, df_ag
         
             # Filter based on available data
         df1 =df_P[df_P["fy23_data_status"] == 'Available']
-        df1 =df_P[df_P["fy23_data_status"] == 'Available']
+        # df1 =df_P[df_P["fy23_data_status"] == 'Available']
         
-        # df1 =df1[df1["period"] == 'FY22'] 
+        df1 =df1[df1["period"] == 'FY23'] 
         
         # This section is needed to filter out only the GIK Projects that links objectivecodes
         # in the Datapackage file to Objective codes in the Df1 file
@@ -168,7 +169,7 @@ def REACH(disaggregation,single_multi,range_from,range_to,df1, df_agelist, df_ag
         
         df1.dropna(subset = ['project_code'], inplace = True) 
         
-        # df1.to_excel('df1.xlsx')
+        df1.to_excel('df1.xlsx')
     # In[Filter and adjust for MultiYear]
     
     # Filter only those years that should be included in the calculation
@@ -194,8 +195,8 @@ def REACH(disaggregation,single_multi,range_from,range_to,df1, df_agelist, df_ag
     def newBracket(age, shift, unique):  
         # get start and end ages for the range to enquire
         # we also add the shift as per the YEar on request
-        
-     
+             
+
         start = df_agemap.loc[df_agemap.age_group.eq(age), 'start_group'].iloc[0] + shift
          
         end = df_agemap.loc[df_agemap.age_group.eq(age), 'end_group'].iloc[0] + shift
@@ -248,21 +249,10 @@ def REACH(disaggregation,single_multi,range_from,range_to,df1, df_agelist, df_ag
     project_ages.drop_duplicates( keep='last', inplace=True, ignore_index=True) 
     project_ages['unique'] = project_ages.index
     
-    #old code
-    # for index, row in project_ages.iterrows():
-    #     age_group = (row[0])
-    #     shift = (row[1])
-    #     unique = (row[2])
-
-    #     # Get Age %'s for each age bracket, for each lin, use the NewBrcket function
-    #     values = newBracket(age_group, shift, unique)
-    #     # values['unique'] = values.index
-    #     # append line to the project_ages Df
-    #     # project_ages = project_ages.append(values)
-    #     project_ages= pd.concat([project_ages, values], ignore_index=True)
-      
-    for _, row in project_ages.iterrows():
-        age_group, shift, unique = row[0], row[1], row[2]
+    for index, row in project_ages.iterrows():
+        age_group = (row[0])
+        shift = (row[1])
+        unique = (row[2])
 
         # Get Age %'s for each age bracket, for each lin, use the NewBrcket function
         values = newBracket(age_group, shift, unique)
@@ -270,6 +260,7 @@ def REACH(disaggregation,single_multi,range_from,range_to,df1, df_agelist, df_ag
         # append line to the project_ages Df
         # project_ages = project_ages.append(values)
         project_ages= pd.concat([project_ages, values], ignore_index=True)
+      
       
         
     project_ages.drop_duplicates(subset=['unique'], keep='last', inplace=True, ignore_index=True)    
@@ -280,14 +271,9 @@ def REACH(disaggregation,single_multi,range_from,range_to,df1, df_agelist, df_ag
     
     
     # Using the calculated % spread, calculate all the values in all the 
-    # Age brackets, based on Numerator and Equivalency
-    
-    # for ele in brackets:    Old code
-        # df1[ele] = df1[ele] *df1['numerator'] *df1['equivalency']
-        
-    c = df1['numerator'] *df1['equivalency']
+    # Age brackets, based on Numerator and Equivalency   
     for ele in brackets:    
-        df1[ele] *=  c
+        df1[ele] = df1[ele] *df1['numerator'] *df1['equivalency']
         
     df1 = df1.drop("unique", axis = 1)    
         
@@ -322,7 +308,7 @@ def REACH(disaggregation,single_multi,range_from,range_to,df1, df_agelist, df_ag
     # Create the columns for the Female Age Brackets, and calculate the values based
     # on the Male% from the country Table
     
-    # for demographic in brackets:
+    for demographic in brackets:
         df1['f' + demographic] = np.where(df1['sex_disaggregation'] == "Female", df1[demographic],  
                                           np.where(df1['sex_disaggregation'] == "Male", 0,    
                                           np.where(df1['sex_disaggregation'] == "Total",
@@ -356,19 +342,13 @@ def REACH(disaggregation,single_multi,range_from,range_to,df1, df_agelist, df_ag
     df2 = df2.drop_duplicates(subset = grouping_list,keep = 'last').reset_index(drop = True)
     
     
-    # Create GroupBY Series based on demographic columns and do calculation on column
-    max_values = df1.groupby(grouping_list)[demographic_brackets].max()
-    df2 = pd.merge(df2, max_values.reset_index(), how='left', on=grouping_list)
-   
-    
-    # for demographic in demographic_brackets:
-    #         subset = (df1.groupby(grouping_list)[demographic].max())  
-    #         subset = pd.DataFrame(subset)
-    #         subset = subset.reset_index()
+    for demographic in demographic_brackets:
+            subset = (df1.groupby(grouping_list)[demographic].max())  
+            subset = pd.DataFrame(subset)
+            subset = subset.reset_index()
       
             #  Now we will Merge the new subset value with df2
-            # df2 = pd.merge(df2,subset, how = 'left', on = grouping_list)
-    
+            df2 = pd.merge(df2,subset, how = 'left', on = grouping_list)
     
     df2_nonWfP = df2.copy()
  
@@ -381,18 +361,13 @@ def REACH(disaggregation,single_multi,range_from,range_to,df1, df_agelist, df_ag
     
     df2 = df2.drop_duplicates(subset = grouping_list,keep = 'last').reset_index(drop = True)
     
-    ##Groupby sum
-    sum_values = df1.groupby(grouping_list)[demographic_brackets].sum()
-    df2 = pd.merge(df2, max_values.reset_index(), how='left', on=grouping_list)
-    # df2 = calculate_demographic_sum_max(df=df1, sum_or_max='sum', grouping_list=grouping_list, demographic_brackets=demographic_brackets, result_df=df2)
-    
-    # for demographic in demographic_brackets:
-    #         subset = (df1.groupby(grouping_list)[demographic].sum())  
-    #         subset = pd.DataFrame(subset)
-    #         subset = subset.reset_index()
+    for demographic in demographic_brackets:
+            subset = (df1.groupby(grouping_list)[demographic].sum())  
+            subset = pd.DataFrame(subset)
+            subset = subset.reset_index()
       
-    #         #  Now we will Merge the new subset value with df2
-    #         df2 = pd.merge(df2,subset, how = 'left', on = grouping_list)
+            #  Now we will Merge the new subset value with df2
+            df2 = pd.merge(df2,subset, how = 'left', on = grouping_list)
     
     df2_WfP = df2.copy()
     
@@ -428,17 +403,17 @@ def REACH(disaggregation,single_multi,range_from,range_to,df1, df_agelist, df_ag
     df3 = df3.drop_duplicates(subset = temp_list,keep = 'last').reset_index(drop = True)
     
     # exit
- 
+    #Group based on a specific subset of information 
+    # temp_list = grouping_list.copy()
+    # temp_list.remove('overlap')
+    # temp_list.remove('funding')
     
     # Create GroupBY Seriesbased on certain columns and do the calculation in demographic column
-    max_values = df2.groupby(temp_list)[demographic_brackets].max()
-    df3 = pd.merge(df3, max_values.reset_index(), how='left', on=temp_list)
-    
-    # for demographic in demographic_brackets:
-    #         subset = (df2.groupby(temp_list)[demographic].max())           
-    #         subset = pd.DataFrame(subset)
-    #         subset = subset.reset_index()
-    #         df3 = pd.merge(df3,subset, how = 'left', on = temp_list)
+    for demographic in demographic_brackets:
+            subset = (df2.groupby(temp_list)[demographic].max())           
+            subset = pd.DataFrame(subset)
+            subset = subset.reset_index()
+            df3 = pd.merge(df3,subset, how = 'left', on = temp_list)
     
     
     #Create new dataframe with columns in the order you want  
@@ -468,23 +443,18 @@ def REACH(disaggregation,single_multi,range_from,range_to,df1, df_agelist, df_ag
       # In[Male Percentage	female_percentage	under_18_percentage	over_18_percentage for RC_HH]
     
         # RC#HH girls
-    # df3.insert(len(df3.columns),'RC_HH_girls',df3['RC_HH']*df3['female_percentage']*df3['under_18_percentage'])
+    df3.insert(len(df3.columns),'RC_HH_girls',df3['RC_HH']*df3['female_percentage']*df3['under_18_percentage'])
         
         # RC#HH boys
-    # df3.insert(len(df3.columns),'RC_HH_boys',df3['RC_HH']*df3['male_percentage']*df3['under_18_percentage'])
+    df3.insert(len(df3.columns),'RC_HH_boys',df3['RC_HH']*df3['male_percentage']*df3['under_18_percentage'])
         
         # RC#HH women
-    #df3.insert(len(df3.columns),'RC_HH_women',df3['RC_HH']*df3['female_percentage']*df3['over_18_percentage']) 
+    df3.insert(len(df3.columns),'RC_HH_women',df3['RC_HH']*df3['female_percentage']*df3['over_18_percentage']) 
         
         # RC#HH Men
-    #df3.insert(len(df3.columns),'RC_HH_men',df3['RC_HH']*df3['male_percentage']*df3['over_18_percentage'])
-    #The above code is inefficeint. replaceing with the below code.
+    df3.insert(len(df3.columns),'RC_HH_men',df3['RC_HH']*df3['male_percentage']*df3['over_18_percentage'])
     
-    df3['RC_HH_girls'] = df3['RC_HH'] * df3['female_percentage'] * df3['under_18_percentage']
-    df3['RC_HH_boys'] = df3['RC_HH'] * df3['male_percentage'] * df3['under_18_percentage']
-    df3['RC_HH_women'] = df3['RC_HH'] * df3['female_percentage'] * df3['over_18_percentage']
-    df3['RC_HH_men'] = df3['RC_HH'] * df3['male_percentage'] * df3['over_18_percentage']
-        
+    
     df3['RC_HH_under18'] = df3['RC_HH_girls'] + df3['RC_HH_boys']
     df3['RC_HH_over18'] = df3['RC_HH_women'] + df3['RC_HH_men']
     
@@ -629,16 +599,12 @@ def REACH(disaggregation,single_multi,range_from,range_to,df1, df_agelist, df_ag
     
     
             # Create GroupBY Series based on demographic columns and do calculation on column
-            
-    sum_values = df3a.groupby(temp_list)[demographic_brackets].sum()
-    df3x = pd.merge(df3x, sum_values.reset_index(), how='left', on=temp_list)
-    
-    # for demographic in demographic_brackets:
-    #     subset = (df3a.groupby(temp_list)[demographic].sum())     
-    #     subset = pd.DataFrame(subset)
-    #     subset = subset.reset_index()
-    #     #  Now we will Merge the new subset value with df2
-    #     df3x = pd.merge(df3x,subset, how = 'left', on = temp_list)
+    for demographic in demographic_brackets:
+        subset = (df3a.groupby(temp_list)[demographic].sum())     
+        subset = pd.DataFrame(subset)
+        subset = subset.reset_index()
+        #  Now we will Merge the new subset value with df2
+        df3x = pd.merge(df3x,subset, how = 'left', on = temp_list)
                 
     
       # In[DF3b - PNS, GNT, WFP, OTH]
@@ -658,14 +624,12 @@ def REACH(disaggregation,single_multi,range_from,range_to,df1, df_agelist, df_ag
         
     df3b = df3b.drop_duplicates(subset = temp_list,keep = 'last').reset_index(drop = True)
     
-    sum_values = df2.groupby(temp_list)[demographic_brackets].sum()
-    df3b = pd.merge(df3b, sum_values.reset_index(), how='left', on=temp_list)
     # Create GroupBY Series based on demographic columns and do calculation on column
-    # for demographic in demographic_brackets:
-    #         subset = (df2.groupby(temp_list)[demographic].sum())           
-    #         subset = pd.DataFrame(subset)
-    #         subset = subset.reset_index()
-    #         df3b = pd.merge(df3b,subset, how = 'left', on = temp_list)
+    for demographic in demographic_brackets:
+            subset = (df2.groupby(temp_list)[demographic].sum())           
+            subset = pd.DataFrame(subset)
+            subset = subset.reset_index()
+            df3b = pd.merge(df3b,subset, how = 'left', on = temp_list)
     
     
       # In[DF3c - GIK]
@@ -681,14 +645,12 @@ def REACH(disaggregation,single_multi,range_from,range_to,df1, df_agelist, df_ag
         
     df3c = df3c.drop_duplicates(subset = temp_list,keep = 'last').reset_index(drop = True)
     
-    max_values = df2.groupby(temp_list)[demographic_brackets].max()
-    df3c = pd.merge(df3c, max_values.reset_index(), how='left', on=temp_list)
     # Create GroupBY Series based on demographic columns and do calculation on column
-    # for demographic in demographic_brackets:
-    #         subset = (df2.groupby(temp_list)[demographic].max())           
-    #         subset = pd.DataFrame(subset)
-    #         subset = subset.reset_index()
-    #         df3c = pd.merge(df3c,subset, how = 'left', on = temp_list)
+    for demographic in demographic_brackets:
+            subset = (df2.groupby(temp_list)[demographic].max())           
+            subset = pd.DataFrame(subset)
+            subset = subset.reset_index()
+            df3c = pd.merge(df3c,subset, how = 'left', on = temp_list)
             
     calculate_M_F(df3)
       # In[DF3 - df3a,df3b,df3c]
@@ -739,14 +701,12 @@ def REACH(disaggregation,single_multi,range_from,range_to,df1, df_agelist, df_ag
         
     
             # Create GroupBY Series based on demographic columns and do calculation on column
-    sum_values = df2.groupby(grouping_list)[demographic_brackets].sum()
-    df4 = pd.merge(df4, sum_values.reset_index(), how='left', on=grouping_list)
-    # for demographic in demographic_brackets:
-    #         subset = (df2.groupby(grouping_list)[demographic].sum())           
-    #         subset = pd.DataFrame(subset)
-    #         subset = subset.reset_index()
-    #         #  Now we will Merge the new subset value with database
-    #         df4 = pd.merge(df4,subset, how = 'left', on = grouping_list)
+    for demographic in demographic_brackets:
+            subset = (df2.groupby(grouping_list)[demographic].sum())           
+            subset = pd.DataFrame(subset)
+            subset = subset.reset_index()
+            #  Now we will Merge the new subset value with database
+            df4 = pd.merge(df4,subset, how = 'left', on = grouping_list)
     
     calculate_M_F(df4)
     
@@ -765,15 +725,14 @@ def REACH(disaggregation,single_multi,range_from,range_to,df1, df_agelist, df_ag
         #  Drop non-PNS rows
     df5 = df5.drop(df5[(df5["funding"] != 'GNT')].index)
     
-    max_values = df2.groupby(grouping_list)[demographic_brackets].max()
-    df5 = pd.merge(df5, max_values.reset_index(), how='left', on=grouping_list)
+    
             # Create GroupBY Series based on demographic columns and do calculation on column
-    # for demographic in demographic_brackets:
-    #         subset = (df2.groupby(grouping_list)[demographic].max())           
-    #         subset = pd.DataFrame(subset)
-    #         subset = subset.reset_index()
-    #         #  Now we will Merge the new subset value with df
-    #         df5 = pd.merge(df5,subset, how = 'left', on = grouping_list)
+    for demographic in demographic_brackets:
+            subset = (df2.groupby(grouping_list)[demographic].max())           
+            subset = pd.DataFrame(subset)
+            subset = subset.reset_index()
+            #  Now we will Merge the new subset value with df
+            df5 = pd.merge(df5,subset, how = 'left', on = grouping_list)
     
     calculate_M_F(df5)
     
@@ -790,14 +749,12 @@ def REACH(disaggregation,single_multi,range_from,range_to,df1, df_agelist, df_ag
     df6['funding'] = "Mixed"
        
             # Create GroupBY Series based on demographic columns and do calculation on column
-    max_values = df6_temp.groupby(grouping_list)[demographic_brackets].max()
-    df6 = pd.merge(df6, max_values.reset_index(), how='left', on=grouping_list)
-    # for demographic in demographic_brackets:
-    #        subset = (df6_temp.groupby(grouping_list)[demographic].max())           
-    #        subset = pd.DataFrame(subset)
-    #        subset = subset.reset_index()
-    #        #  Now we will Merge the new subset value with df
-    #        df6 = pd.merge(df6,subset, how = 'left', on =grouping_list)
+    for demographic in demographic_brackets:
+           subset = (df6_temp.groupby(grouping_list)[demographic].max())           
+           subset = pd.DataFrame(subset)
+           subset = subset.reset_index()
+           #  Now we will Merge the new subset value with df
+           df6 = pd.merge(df6,subset, how = 'left', on =grouping_list)
     
     calculate_M_F(df6)
     #%% DF7 - Sum overlapping and NonOVerlapping projects
@@ -820,17 +777,14 @@ def REACH(disaggregation,single_multi,range_from,range_to,df1, df_agelist, df_ag
     df7 = df7_temp[grouping_list].copy()
     df7 = df7.drop_duplicates(subset = grouping_list,keep = 'last').reset_index(drop = True)
     
-            # Create GroupBY Series based on demographic columns and do calculation on column  
-    sum_values = df7_temp.groupby(grouping_list)[demographic_brackets].sum()
-    df7 = pd.merge(df7, max_values.reset_index(), how='left', on=grouping_list)  
-    
-    # for demographic in demographic_brackets:
-    #         subset = (df7_temp.groupby(grouping_list)[demographic].sum())           
-    #         subset = pd.DataFrame(subset)
-    #         subset = subset.reset_index()
-    #         #  Now we will Merge the new subset value with df2
-    #         df7 = pd.merge(df7,subset, how = 'left', on = grouping_list)
-    #         subset.drop
+            # Create GroupBY Series based on demographic columns and do calculation on column    
+    for demographic in demographic_brackets:
+            subset = (df7_temp.groupby(grouping_list)[demographic].sum())           
+            subset = pd.DataFrame(subset)
+            subset = subset.reset_index()
+            #  Now we will Merge the new subset value with df2
+            df7 = pd.merge(df7,subset, how = 'left', on = grouping_list)
+            subset.drop
     
     calculate_M_F(df7)
     #%% DF8 - - MAX GIK with the above
@@ -849,16 +803,13 @@ def REACH(disaggregation,single_multi,range_from,range_to,df1, df_agelist, df_ag
     df8 = df8.drop_duplicates(subset =grouping_list,keep = 'last').reset_index(drop = True)
     
             # Create GroupBY Series based on demographic columns and do calculation on column    
-    max_values = df8_temp.groupby(grouping_list)[demographic_brackets].max()
-    df8 = pd.merge(df8, max_values.reset_index(), how='left', on=grouping_list)
-    
-    # for demographic in demographic_brackets:
-    #         subset = (df8_temp.groupby(grouping_list)[demographic].max())           
-    #         subset = pd.DataFrame(subset)
-    #         subset = subset.reset_index()
-    #         #  Now we will Merge the new subset value with df2
-    #         df8 = pd.merge(df8,subset, how = 'left', on = grouping_list)
-    #         subset.drop
+    for demographic in demographic_brackets:
+            subset = (df8_temp.groupby(grouping_list)[demographic].max())           
+            subset = pd.DataFrame(subset)
+            subset = subset.reset_index()
+            #  Now we will Merge the new subset value with df2
+            df8 = pd.merge(df8,subset, how = 'left', on = grouping_list)
+            subset.drop
     
     calculate_M_F(df8)
     
@@ -879,18 +830,14 @@ def REACH(disaggregation,single_multi,range_from,range_to,df1, df_agelist, df_ag
     df9 = df9.drop_duplicates(subset = grouping_list,keep = 'last').reset_index(drop = True)
     #df6['funding'] = "Mixed"
     
-            # Create GroupBY Series based on demographic columns and do calculation on column   
-            
-    sum_values = df9_temp.groupby(grouping_list)[demographic_brackets].sum()
-    df9 = pd.merge(df9, max_values.reset_index(), how='left', on=grouping_list) 
-    
-    # for demographic in demographic_brackets:
-    #         subset = (df9_temp.groupby(grouping_list)[demographic].sum())           
-    #         subset = pd.DataFrame(subset)
-    #         subset = subset.reset_index()
-    #         # print(subset)
-    #         #  Now we will Merge the new subset value with df2
-    #         df9 = pd.merge(df9,subset, how = 'left', on = grouping_list)
+            # Create GroupBY Series based on demographic columns and do calculation on column    
+    for demographic in demographic_brackets:
+            subset = (df9_temp.groupby(grouping_list)[demographic].sum())           
+            subset = pd.DataFrame(subset)
+            subset = subset.reset_index()
+            # print(subset)
+            #  Now we will Merge the new subset value with df2
+            df9 = pd.merge(df9,subset, how = 'left', on = grouping_list)
     
     
     calculate_M_F(df9)
@@ -907,17 +854,14 @@ def REACH(disaggregation,single_multi,range_from,range_to,df1, df_agelist, df_ag
     df10 = df10.drop_duplicates(subset = grouping_list,keep = 'last').reset_index(drop = True)
     #df6['funding'] = "Mixed"
     
-            # Create GroupBY Series based on demographic columns and do calculation on column 
-    sum_values = df9.groupby(grouping_list)[summary_list].sum()
-    df10 = pd.merge(df10, sum_values.reset_index(), how='left', on=grouping_list)
-       
-    # for demographic in summary_list:
-    #         subset = (df9.groupby(grouping_list)[demographic].sum())           
-    #         subset = pd.DataFrame(subset)
-    #         subset = subset.reset_index()
-    #         # print(subset)
-    #         #  Now we will Merge the new subset value with df2
-    #         df10 = pd.merge(df10,subset, how = 'left', on = grouping_list)
+            # Create GroupBY Series based on demographic columns and do calculation on column    
+    for demographic in summary_list:
+            subset = (df9.groupby(grouping_list)[demographic].sum())           
+            subset = pd.DataFrame(subset)
+            subset = subset.reset_index()
+            # print(subset)
+            #  Now we will Merge the new subset value with df2
+            df10 = pd.merge(df10,subset, how = 'left', on = grouping_list)
     
     
     df10['male']= df10['boys']+df10['men']
@@ -996,13 +940,134 @@ def REACH(disaggregation,single_multi,range_from,range_to,df1, df_agelist, df_ag
     
     #%% PRINT
     
-    savepath = "resultsFY23\\"
+    savepath = "results\\"
     # savepath = "testing\\"    
     ext = datetime.now().strftime('_%Y%m%d_%H%M.xlsx')
     if single_multi == "single":
-        filename =  "Reach_FY23_FC"
+        filename =  "Reach_FY23_"
     else:
-        filename =  "Reach_multi_16_23"   
-    
+        filename =  "Reach_multi_16_23"  
+        
     return dfProject_summary, dfProgram_summary, dfCountry_summary, df1
+    
+#     writer = pd.ExcelWriter(savepath+filename+disaggregation  + ext, engine='xlsxwriter')
+        
+#     frames = {
+#         # "PJT_Indicator" : df1,
+#         # 'df2': df2,
+#         # "df3" : df3,"df3a" : df3a , "df3b" : df3b,"df3c" : df3c,"df3x" : df3x,
+#         # "df4" : df4,
+#         #         "DF5": df5, "DF6": df6, "DF7": df7, "DF8":df8, "df9":df9, 
+#                 # "PJT_summary":dfProject_summary
+#                 # , "PGM_summary" : dfProgram_summary, 
+#                 "Country_summary": dfCountry_summary, "PVT": dfPVT_summary
+#               }    
+        
+    
+        
+#         #now loop thru and put each on a specific sheet
+#     for sheet, frame in  frames.items(): # .use .items for python 3.X
+#         frame.to_excel(writer, sheet_name = sheet)
+        
+#         #critical last step
+#     # writer.save()
+#     writer.close()
+    
+
+    
+#     end = time.time()
+#     print("Done ",disaggregation,":",
+#           (end-start) /60, "min")
+    
+# if __name__ == '__main__':
+#     #%% Get User Input
+    
+#     single_multi = "single"  #multi / single
+#     range_from = 16
+#     range_to = 23
+    
+#     #%% Read Data
+#     # In[Set paths for reading data and add to Dataframes]
+#     # [Read ITT]
+    
+#     start = time.time()
+#     credentials = {
+#     	'account' : 'pr43333.canada-central.azure',
+#     	'user' :   'marthe_lotz@worldvision.ca',
+#     	'authenticator' : 'externalbrowser',
+#         'role' : 'DATA_INSIGHTS',
+#         'warehouse' : 'DATA_INSIGHTS_WH',
+#         'database'  : 'ANALYTICS_SANDBOX',
+#             # 'database'  : 'IVS_DPMS_DEV',
+#         'schema'    : 'INSIGHTS' ,
+#     	'authenticator' : 'externalbrowser'
+#     	}
+    
+#     session = Session.builder.configs(credentials).create()
+    
+#     query  = "select * from ANALYTICS_SANDBOX.INSIGHTS.HUB_TABLE"
+#     sql_table = session.sql(query)
+#     df1 = sql_table.to_pandas()
+#     df1.columns= df1.columns.str.lower()
+    
+#     # df1 = pd.read_excel('data\df_HUB_upload.xlsx', sheet_name = 'Sheet1')
+
+#     # df1.columns= df1.columns.str.lower()
+
+    
+#     #%% FILTERS    
+    
+#     # path = "testing\\Reach_Testdata_080923.xlsx" 
+#     # df1 = pd.read_excel(path, sheet_name='data')
+    
+#     # TODO
+#     # Remember to sort out the Sector Column
+#     # Double check if ProgrammingType is coming in correctly
+#     df1 = df1.rename(columns={'sector_name': 'sector'})
+#     df1 = df1.rename(columns={'external_programming_type': 'programming_type'})
+    
+#     #Fix for SuperProgrammingType - Turn on or Off
+#     #Deal with ProgrammingType For ALLRESPONSES 
+#     # df1['programming_type'] = df1['programming_type'].str.replace('Crisis Response','Response') 
+#     # df1['programming_type'] = df1['programming_type'].str.replace('Chronic emergencies & fragile contexts','Response')   
+    
+#     # df1 = df1[(df1['funding'] == "SPN")] 
+#     # # df1 = df1[(df1['period'] == "FY22")|(df1['period'] == "FY23")]
+#     # df1 = df1[(df1['period'] == "FY23")]
+    
+#     # df1 = df1[(df1['project_code'] == "PJT-SPN-191467-FY17")]
+#               # |(df1['project_code'] == "PJT-WFP-220938-FY23")|
+#     #            (df1['project_code'] == "PJT-PNS-213329-FY20")|(df1['project_code'] == "PJT-PNS-213304-FY20")|
+#     #            (df1['project_code'] == "PJT-PNS-218520-FY22")|(df1['project_code'] == "PJT-GNT-219271-FY22")|
+#     #           (df1['project_code'] == "PJT-PNS-220423-FY22")] 
   
+
+#     query  = "select * from ANALYTICS_SANDBOX.INSIGHTS.AGELIST"
+#     sql_table = session.sql(query)
+#     df_agelist = sql_table.to_pandas()
+#     df_agelist.columns= df_agelist.columns.str.lower()
+    
+    
+#     query  = "select * from ANALYTICS_SANDBOX.INSIGHTS.AGEMAP"
+#     sql_table = session.sql(query)
+#     df_agemap = sql_table.to_pandas()
+#     df_agemap.columns= df_agemap.columns.str.lower()
+    
+#     query  = "select * from ANALYTICS_SANDBOX.INSIGHTS.CAUSES_TEST"
+#     sql_table = session.sql(query)
+#     df_package = sql_table.to_pandas()
+#     df_package.columns= df_package.columns.str.lower()
+    
+#     end = time.time()
+#     print("Done reading :",
+#           (end-start) /60, "min")
+    
+    
+#     # Call the REACH calculation with different disaggregations and parameters
+#     REACH('',single_multi,range_from,range_to, df1)
+#     # REACH('sector',single_multi,range_from,range_to, df1)
+#     # REACH('programming_type',single_multi,range_from,range_to, df1)
+#     # REACH('causeid',single_multi,range_from,range_to, df1)
+#     end = time.time()
+#     print("DONE!! :",
+#           (end-start) /60, "min")    
